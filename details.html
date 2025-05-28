@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Details</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body class="detail-page">
+<a href="index.html" class="back-btn">Back to Animation</a>
+<h1 id="app-title">Application Details</h1>
+<section id="overview">
+    <h2>Overview</h2>
+    <p id="app-description">Loading...</p>
+</section>
+<section id="endpoints">
+    <h2>Endpoints</h2>
+    <ul id="endpoint-list"></ul>
+</section>
+<section id="certificates">
+    <h2>Certificates</h2>
+    <ul id="certificate-list"></ul>
+</section>
+<section id="metrics">
+    <h2>API Call Volume (Mock)</h2>
+    <svg id="chart" width="600" height="200" class="chart"></svg>
+</section>
+<section id="resources">
+    <h2>Resources</h2>
+    <ul id="resource-links">
+        <li><a href="#" class="resource-link" id="config-link">Configuration</a></li>
+        <li><a href="#" class="resource-link" id="playbook-link">Playbook</a></li>
+        <li><a href="#" class="resource-link" id="dashboard-link">Dashboard</a></li>
+        <li><a href="#" class="resource-link" id="pipeline-link">Pipeline</a></li>
+    </ul>
+</section>
+<script>
+    const appData = {
+        "apigw": {
+            title: "APIGW",
+            description: "The APIGW handles incoming API requests, routing them to appropriate services with load balancing and rate limiting.",
+            endpoint: "/gateway (POST)",
+            certificates: { keystore: "gateway.jks", truststore: "gateway_trust.jks" },
+            metrics: [50, 75, 60, 90, 80, 100, 70],
+            resources: {
+                config: "https://example.com/apigw/config",
+                playbook: "https://example.com/apigw/playbook",
+                dashboard: "https://example.com/apigw/dashboard",
+                pipeline: "https://example.com/apigw/pipeline"
+            }
+        },
+        "eventgw": {
+            title: "EventGW",
+            description: "External consumer endpoint for third-party integrations.",
+            endpoint: "/external (POST)",
+            certificates: { keystore: "external.jks", truststore: "external_trust.jks" },
+            metrics: [30, 45, 50, 55, 60, 65, 70],
+            resources: {
+                config: "https://example.com/eventgw/config",
+                playbook: "https://example.com/eventgw/playbook",
+                dashboard: "https://example.com/eventgw/dashboard",
+                pipeline: "https://example.com/eventgw/pipeline"
+            }
+        },
+        "secure-access-service": {
+            title: "Secure Access Service",
+            description: "Performs authentication and authorization for API requests.",
+            endpoint: "/security (POST)",
+            certificates: { keystore: "security.jks", truststore: "security_trust.jks" },
+            metrics: [40, 60, 55, 70, 65, 80, 75],
+            resources: {
+                config: "https://example.com/secure-access/config",
+                playbook: "https://example.com/secure-access/playbook",
+                dashboard: "https://example.com/secure-access/dashboard",
+                pipeline: "https://example.com/secure-access/pipeline"
+            }
+        },
+        "policy-service": {
+            title: "Policy Service",
+            description: "Manages API policies and compliance.",
+            endpoint: "/policy (POST)",
+            certificates: { keystore: "policy.jks", truststore: "policy_trust.jks" },
+            metrics: [20, 30, 25, 35, 40, 45, 50],
+            resources: {
+                config: "https://example.com/policy/config",
+                playbook: "https://example.com/policy/playbook",
+                dashboard: "https://example.com/policy/dashboard",
+                pipeline: "https://example.com/policy/pipeline"
+            }
+        },
+        "security-database": {
+            title: "Security Database",
+            description: "Stores security-related API data.",
+            endpoint: "/db (GET)",
+            certificates: { keystore: "db.jks", truststore: "db_trust.jks" },
+            metrics: [15, 25, 20, 30, 35, 40, 45],
+            resources: {
+                config: "https://example.com/security-db/config",
+                playbook: "https://example.com/security-db/playbook",
+                dashboard: "https://example.com/security-db/dashboard",
+                pipeline: "https://example.com/security-db/pipeline"
+            }
+        },
+        "token-service": {
+            title: "Token Service",
+            description: "Issues and validates tokens for API authentication.",
+            endpoint: "/token (POST)",
+            certificates: { keystore: "token.jks", truststore: "token_trust.jks", signing_cert: "token_sign.crt" },
+            metrics: [60, 70, 65, 80, 75, 90, 85],
+            resources: {
+                config: "https://example.com/token/config",
+                playbook: "https://example.com/token/playbook",
+                dashboard: "https://example.com/token/dashboard",
+                pipeline: "https://example.com/token/pipeline"
+            }
+        },
+        "identity-service": {
+            title: "Identity Service",
+            description: "Provides web API endpoints for client applications.",
+            endpoint: "/webservice (GET)",
+            certificates: { keystore: "web.jks", truststore: "web_trust.jks" },
+            metrics: [50, 55, 60, 65, 70, 75, 80],
+            resources: {
+                config: "https://example.com/identity/config",
+                playbook: "https://example.com/identity/playbook",
+                dashboard: "https://example.com/identity/dashboard",
+                pipeline: "https://example.com/identity/pipeline"
+            }
+        },
+        "database": {
+            title: "Database",
+            description: "Stores API data for web services.",
+            endpoint: "/db (GET)",
+            certificates: { keystore: "db.jks", truststore: "db_trust.jks" },
+            metrics: [25, 30, 35, 40, 45, 50, 55],
+            resources: {
+                config: "https://example.com/db/config",
+                playbook: "https://example.com/db/playbook",
+                dashboard: "https://example.com/db/dashboard",
+                pipeline: "https://example.com/db/pipeline"
+            }
+        }
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const appSlug = params.get("app") || "apigw";
+    const data = appData[appSlug] || {
+        title: "Unknown App",
+        description: "No data available.",
+        endpoint: "",
+        certificates: {},
+        metrics: [],
+        resources: { config: "#", playbook: "#", dashboard: "#", pipeline: "#" }
+    };
+
+    document.getElementById("app-title").textContent = data.title;
+    document.getElementById("app-description").textContent = data.description;
+    document.getElementById("endpoint-list").innerHTML = `<li>${data.endpoint}</li>`;
+    document.getElementById("certificate-list").innerHTML = `
+            <li>Keystore: ${data.certificates.keystore || "N/A"}</li>
+            <li>Truststore: ${data.certificates.truststore || "N/A"}</li>
+            ${data.certificates.signing_cert ? `<li>Signing Cert: ${data.certificates.signing_cert}</li>` : ""}
+        `;
+    document.getElementById("config-link").href = data.resources.config;
+    document.getElementById("playbook-link").href = data.resources.playbook;
+    document.getElementById("dashboard-link").href = data.resources.dashboard;
+    document.getElementById("pipeline-link").href = data.resources.pipeline;
+
+    const chartSvg = d3.select("#chart");
+    const chartWidth = 600;
+    const chartHeight = 200;
+    const barWidth = chartWidth / data.metrics.length;
+
+    const yScale = d3.scaleLinear()
+        .domain([0, d3.max(data.metrics)])
+        .range([chartHeight, 0]);
+
+    chartSvg.selectAll(".bar")
+        .data(data.metrics)
+        .enter().append("rect")
+        .attr("class", "bar")
+        .attr("x", (d, i) => i * barWidth)
+        .attr("y", d => yScale(d))
+        .attr("width", barWidth - 5)
+        .attr("height", d => chartHeight - yScale(d));
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93e7663e8c2c1836',t:'MTc0NzAyNjUxOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

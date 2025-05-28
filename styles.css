@@ -1,0 +1,285 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #1C2526;
+    color: #E0E0E0;
+}
+
+#header {
+    background-color: #2E3B3E;
+    padding: 10px 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#header-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 1400px;
+}
+
+#logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 15px;
+}
+
+h1 {
+    font-size: 24px;
+    margin: 0;
+    color: #FFFFFF;
+}
+
+#subtitle {
+    font-size: 14px;
+    color: #B0B0B0;
+    margin-left: 10px;
+    flex-grow: 1;
+}
+
+#export-btn {
+    background-color: #00A1D6;
+    color: #FFFFFF;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+#export-btn:hover {
+    background-color: #008BB5;
+}
+
+#progress-container {
+    width: 100%;
+    max-width: 1400px;
+    height: 5px;
+    background-color: #3A4A4D;
+    margin-top: 10px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+#progress-bar {
+    width: 0%;
+    height: 100%;
+    background-color: #00FF00;
+    transition: width 0.1s linear;
+}
+
+#controls {
+    display: flex;
+    justify-content: center;
+    background-color: #2E3B3E;
+    padding: 10px 0;
+    border-bottom: 1px solid #3A4A4D;
+}
+
+#controls label {
+    margin: 0 10px;
+    font-size: 14px;
+    color: #E0E0E0;
+}
+
+#controls select {
+    background-color: #3A4A4D;
+    color: #E0E0E0;
+    border: 1px solid #4A5A5D;
+    padding: 5px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#tabs {
+    display: flex;
+    justify-content: center;
+    background-color: #2E3B3E;
+    padding: 10px 0;
+    border-bottom: 1px solid #3A4A4D;
+}
+
+.tab {
+    background-color: #3A4A4D;
+    color: #E0E0E0;
+    border: none;
+    padding: 10px 20px;
+    margin: 0 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+
+.tab i {
+    margin-right: 8px;
+}
+
+.tab:hover {
+    background-color: #4A5A5D;
+}
+
+.tab.active {
+    background-color: #00A1D6;
+    color: #FFFFFF;
+}
+
+#visualization {
+    display: block;
+    margin: 0 auto;
+    background-color: #1C2526;
+}
+
+.node {
+    opacity: 1;
+}
+
+.node:hover {
+    filter: drop-shadow(0 0 5px #00A1D6);
+}
+
+.node:hover rect,
+.node:hover path {
+    stroke-width: 4px;
+}
+
+.watchpoint:hover circle {
+    filter: drop-shadow(0 0 5px #FFD700);
+}
+
+.watchpoint text {
+    background-color: rgba(28, 37, 38, 0.7);
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+.link text {
+    background-color: rgba(28, 37, 38, 0.7);
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+.static-info text {
+    background-color: rgba(28, 37, 38, 0.7);
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+.cert-text {
+    background-color: rgba(28, 37, 38, 0.7);
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+.processing-gear {
+    animation: rotate 2s linear infinite;
+}
+
+.tooltip {
+    position: absolute;
+    background-color: #2E3B3E;
+    color: #FFFFFF;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border: 1px solid #4A5A5D;
+}
+
+.flowing-line {
+    stroke-dasharray: 5,5;
+    animation: dash 2s linear infinite;
+}
+
+.decision-check {
+    stroke: #00FF00;
+    stroke-width: 2;
+}
+
+.highlight-node {
+    filter: drop-shadow(0 0 5px #00A1D6);
+}
+
+marker path {
+    fill-opacity: 1;
+}
+
+@keyframes dash {
+    from {
+        stroke-dashoffset: 20;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.detail-page {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.back-btn {
+    display: inline-block;
+    color: #00A1D6;
+    text-decoration: none;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+.back-btn:hover {
+    text-decoration: underline;
+}
+
+.detail-page h1 {
+    font-size: 28px;
+    color: #FFFFFF;
+}
+
+.detail-page h2 {
+    font-size: 20px;
+    color: #FFFFFF;
+    margin-top: 20px;
+}
+
+.detail-page p, .detail-page ul {
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.detail-page ul {
+    list-style: none;
+    padding: 0;
+}
+
+.detail-page ul li {
+    margin-bottom: 10px;
+}
+
+.resource-link {
+    color: #00A1D6;
+    text-decoration: none;
+}
+
+.resource-link:hover {
+    text-decoration: underline;
+}
+
+.chart .bar {
+    fill: #00A1D6;
+}

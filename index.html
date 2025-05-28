@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next Level API Animation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="header">
+    <div id="header-content">
+        <img id="logo" src="logo.png" alt="Logo">
+        <h1>Next Level API Animation</h1>
+        <span id="subtitle">Optimizing Connectivity & Security</span>
+        <button id="export-btn">Export PNG</button>
+    </div>
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+</div>
+
+<div id="controls">
+    <label for="flow-select">Select Flow:</label>
+    <select id="flow-select">
+        <option value="inbound_traffic">Inbound Traffic Flow</option>
+        <option value="onboarding">Consumer Onboarding</option>
+        <option value="policy_onboarding">Policy Onboarding</option>
+        <option value="internal_traffic">Internal Traffic Flow</option>
+        <option value="rapid_auth">RapidAuth-API Flow</option>
+    </select>
+    <label for="condition-select">Select Condition:</label>
+    <select id="condition-select">
+        <option value="no-cache">No-Cache</option>
+        <option value="cached">Cached</option>
+    </select>
+</div>
+
+<div id="tabs">
+    <button id="layer-infrastructure" class="tab">Infrastructure</button>
+    <button id="layer-flows" class="tab">Flows</button>
+    <button id="layer-watchpoints" class="tab">Watchpoints</button>
+    <button id="layer-connections" class="tab">Connections</button>
+    <button id="layer-impact-analysis" class="tab">Impact Analysis</button>
+</div>
+
+<svg id="visualization" width="1400" height="800"></svg>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
