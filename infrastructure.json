@@ -110,7 +110,7 @@
         "size": 70,
         "position": {
           "x": 550,
-          "y": 740
+          "y": 700
         },
         "endpoint": "/policy",
         "method": "GET",
@@ -127,10 +127,10 @@
         "id": "API_SASDataBase",
         "shape": "cylinder",
         "color": "#32CD32",
-        "size": 50,
+        "size": 35,
         "position": {
           "x": 550,
-          "y": 540
+          "y": 500
         },
         "endpoint": "security_db",
         "method": "GET",
@@ -171,7 +171,7 @@
         "size": 70,
         "position": {
           "x": 200,
-          "y": 550
+          "y": 500
         },
         "endpoint": "/identity",
         "method": "GET",
@@ -191,7 +191,7 @@
         "size": 35,
         "position": {
           "x": 200,
-          "y": 700
+          "y": 650
         },
         "endpoint": "/db",
         "method": "GET",
@@ -311,7 +311,7 @@
         "size": 55,
         "position": {
           "x": 700,
-          "y": 625
+          "y": 600
         },
         "endpoint": "/spm-admin",
         "method": "POST",
@@ -331,7 +331,7 @@
         "size": 55,
         "position": {
           "x": 700,
-          "y": 740
+          "y": 700
         },
         "endpoint": "spm-dispatcher",
         "method": "POST",
@@ -432,7 +432,7 @@
         "size": 60,
         "position": {
           "x": 400,
-          "y": 550
+          "y": 500
         },
         "endpoint": "/api/rapidauth",
         "method": "POST",
@@ -450,7 +450,7 @@
         "id": "API_RapidAuthDB",
         "shape": "cylinder",
         "color": "#FF69B4",
-        "size": 50,
+        "size": 35,
         "position": {
           "x": 400,
           "y": 650
@@ -473,7 +473,7 @@
         "size": 55,
         "position": {
           "x": 550,
-          "y": 650
+          "y": 600
         },
         "endpoint": "/api/axon",
         "method": "POST",
