@@ -283,3 +283,32 @@ marker path {
 .chart .bar {
     fill: #00A1D6;
 }
+svg#visualization {
+    background-color: #1A2526;
+}
+
+svg#visualization, .tooltip, text {
+    font-family: "Roboto", sans-serif;
+}
+
+.tooltip {
+    position: absolute;
+    background-color: #2E3B3E;
+    color: #E8ECEF;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.4;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+#progress-bar {
+    background-color: #4A90E2;
+    height: 5px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transition: width 0.2s ease-in-out;
+    box-shadow: 0 0 5px #4A90E2;
+}
