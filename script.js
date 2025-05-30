@@ -19,6 +19,43 @@ const height = window.innerHeight * 0.9;
 svg.attr("height", height);
 console.log("SVG dimensions:", width, height);
 
+// Define gradients and shadows
+const defs = svg.append("defs");
+
+// Gradient for info boxes
+const infoGradient = defs.append("linearGradient")
+    .attr("id", "info-gradient")
+    .attr("x1", "0%")
+    .attr("y1", "0%")
+    .attr("x2", "0%")
+    .attr("y2", "100%");
+infoGradient.append("stop")
+    .attr("offset", "0%")
+    .attr("style", "stop-color:#2E3B3E;stop-opacity:1");
+infoGradient.append("stop")
+    .attr("offset", "100%")
+    .attr("style", "stop-color:#1A2526;stop-opacity:1");
+
+// Drop shadow filter
+const filter = defs.append("filter")
+    .attr("id", "drop-shadow")
+    .attr("height", "130%");
+filter.append("feGaussianBlur")
+    .attr("in", "SourceAlpha")
+    .attr("stdDeviation", 3);
+filter.append("feOffset")
+    .attr("dx", 2)
+    .attr("dy", 2)
+    .attr("result", "offsetblur");
+filter.append("feComponentTransfer")
+    .append("feFuncA")
+    .attr("type", "linear")
+    .attr("slope", 0.5);
+const feMerge = filter.append("feMerge");
+feMerge.append("feMergeNode");
+feMerge.append("feMergeNode")
+    .attr("in", "SourceGraphic");
+
 const tooltip = d3.select("body").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0);
@@ -27,10 +64,29 @@ console.log("Tooltip created");
 async function loadData() {
     console.log("Loading infrastructure.json");
     try {
-        const jsonData = await d3.json("infrastructure.json?_=" + new Date().getTime());
-        console.log("JSON loaded:", jsonData ? "Success" : "Empty");
+        const response = await fetch("infrastructure.json?_=" + new Date().getTime());
+        console.log("Fetch response status:", response.status, response.statusText);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Fetch failed. Response content:", errorText);
+            throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}. Response: ${errorText}`);
+        }
+
+        const responseText = await response.text();
+        console.log("Raw response content:", responseText);
+
+        let jsonData;
+        try {
+            jsonData = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error("JSON parsing failed:", parseError);
+            console.error("Response content that failed to parse:", responseText);
+            throw new Error(`Failed to parse JSON: ${parseError.message}. Response: ${responseText}`);
+        }
+
+        console.log("JSON loaded:", jsonData ? "Success" : "Empty", jsonData);
         if (!jsonData || !jsonData.apps || !jsonData.blueprint) {
-            console.error("Invalid JSON structure: missing apps or blueprint");
+            console.error("Invalid JSON structure: missing apps or blueprint", jsonData);
             alert("Error: Invalid infrastructure.json structure. Check console for details.");
             throw new Error("Invalid JSON structure");
         }
@@ -43,20 +99,22 @@ async function loadData() {
             crashed: false,
             hovered: false
         }));
-        flows = Object.keys(jsonData.blueprint.flows).flatMap(key =>
+
+        const flowColors = ["#4A90E2", "#E57373", "#81C784", "#FFCA28"];
+        flows = Object.keys(jsonData.blueprint.flows).flatMap((key, index) =>
             jsonData.blueprint.flows[key].map(flow => ({
                 id: key,
                 name: flow.name,
                 type: flow.type,
-                color: flow.color,
+                color: flow.color || flowColors[index % flowColors.length],
                 conditions: flow.conditions || [{
                     id: "default",
                     name: "Default",
                     path: flow.path,
-                    labels: flow.labels || flow.path.map((_, i) => ({text: `#${i + 1}`, color: "#FFFFFF"})),
+                    labels: flow.labels || flow.path.map((_, i) => ({text: `#${i + 1}`, color: "#E8ECEF"})),
                     decisions: flow.decisions || [],
                     pause: flow.pause || 2000,
-                    color: flow.color
+                    color: flow.color || flowColors[index % flowColors.length]
                 }]
             }))
         );
@@ -84,7 +142,16 @@ async function loadData() {
         console.log("Static Info:", staticInfo.length);
     } catch (error) {
         console.error("Error loading JSON:", error);
-        alert("Error loading infrastructure.json. Check console and ensure file exists.");
+        alert("Error loading infrastructure.json: " + error.message + ". Check console and ensure file exists.");
+        svg.append("g")
+            .attr("class", "error-message")
+            .append("text")
+            .attr("x", width / 2)
+            .attr("y", height / 2)
+            .attr("text-anchor", "middle")
+            .attr("fill", "#EF5350")
+            .attr("font-size", "16px")
+            .text("Error loading infrastructure.json: " + error.message);
         throw error;
     }
 }
@@ -96,6 +163,15 @@ function initBlueprint() {
         if (!nodes.length) {
             console.error("No valid nodes to render");
             alert("Error: No apps defined in infrastructure.json.");
+            svg.append("g")
+                .attr("class", "error-message")
+                .append("text")
+                .attr("x", width / 2)
+                .attr("y", height / 2)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#EF5350")
+                .attr("font-size", "16px")
+                .text("Error: No apps defined in infrastructure.json.");
             return;
         }
 
@@ -179,10 +255,13 @@ function initBlueprint() {
                 });
 
             g.append("text")
-                .attr("dy", d => (d.id === "API_F5" || d.id === "API_APIGW" || d.id === "API_AuthWeb" || d.id === "API_SIM" || d.id === "API_CaaS") ? -d.size / 2 - 15 : d.size / 2 + 25)
-                .attr("text-anchor", "middle")
-                .attr("font-size", "12px")
-                .attr("fill", "#E0E0E0")
+                .attr("dx", d => -d.size / 2)
+                .attr("dy", d => (d.shape === "cylinder" ? -d.size : -d.size / 2) - 10)
+                .attr("text-anchor", "start")
+                .attr("font-size", "14px")
+                .attr("font-weight", "bold")
+                .attr("fill", "#E8ECEF")
+                .style("text-shadow", "1px 1px 2px rgba(0, 0, 0, 0.5)")
                 .text(d => {
                     console.log(`Rendering label for node ${d.id}: ${d.name}`);
                     return d.name || "Unknown";
@@ -192,7 +271,7 @@ function initBlueprint() {
                 .attr("class", "crash-indicator")
                 .attr("text-anchor", "middle")
                 .attr("dy", ".35em")
-                .attr("fill", "red")
+                .attr("fill", "#EF5350")
                 .style("font-size", d => `${d.size / 2}px`)
                 .style("opacity", 0)
                 .text("X");
@@ -214,24 +293,25 @@ function renderStaticInfo() {
             .attr("transform", "translate(970, 20)");
 
         const infoBox = infoGroup.append("rect")
-            .attr("x", -5)
-            .attr("y", -5)
-            .attr("width", 400)
-            .attr("height", staticInfo.length * 20 + 10)
-            .attr("fill", "#2E3B3E")
+            .attr("x", -10)
+            .attr("y", -10)
+            .attr("width", 410)
+            .attr("height", staticInfo.length * 25 + 20)
+            .attr("fill", "url(#info-gradient)")
             .attr("stroke", "#4A5A5D")
             .attr("stroke-width", 1)
-            .attr("rx", 5);
+            .attr("rx", 5)
+            .style("filter", "url(#drop-shadow)");
 
         infoGroup.selectAll(".info-text")
             .data(staticInfo)
             .enter().append("text")
             .attr("class", "info-text")
             .attr("x", 5)
-            .attr("y", (d, i) => i * 20 + 10)
-            .attr("font-size", d => d.font_size || "12px")
+            .attr("y", (d, i) => i * 25 + 15)
+            .attr("font-size", d => d.font_size || "13px")
             .attr("font-weight", d => d.font_weight || "normal")
-            .attr("fill", d => d.color || "#E0E0E0")
+            .attr("fill", d => d.color || "#E8ECEF")
             .text(d => d.text);
         console.log("Static info box rendered with", staticInfo.length, "lines");
     } catch (error) {
@@ -284,7 +364,7 @@ async function renderFlows(flowId, conditionId = "default") {
         }
 
         const path = condition.path;
-        const labels = condition.labels || path.map((_, i) => ({text: `#${i + 1}`, color: "#FFFFFF"}));
+        const labels = condition.labels || path.map((_, i) => ({text: `#${i + 1}`, color: "#E8ECEF"}));
         const color = condition.color || flow.color;
         const pause = condition.pause || 2000;
         const decisions = condition.decisions || [];
@@ -325,7 +405,7 @@ async function renderFlows(flowId, conditionId = "default") {
             return {
                 source,
                 target,
-                label: labels[i] || {text: "", color: "#FFFFFF"},
+                label: labels[i] || {text: "", color: "#E8ECEF"},
                 decision: decisions.find(d => d.step === i)
             };
         }).filter(step => step !== null);
@@ -341,7 +421,7 @@ async function renderFlows(flowId, conditionId = "default") {
             source: step.source,
             target: step.target,
             label: step.label.text,
-            labelColor: step.label.color || "#FFFFFF",
+            labelColor: step.label.color || "#E8ECEF",
             fullLabel: step.label.text,
             decision: step.decision,
             yOffset: i % 2 === 0 ? 20 : 35
@@ -358,7 +438,8 @@ async function renderFlows(flowId, conditionId = "default") {
         const updateProgress = () => {
             const elapsed = Date.now() - startTime;
             const progress = totalDuration ? Math.min(elapsed / totalDuration * 100, 100) : 0;
-            progressBar.style("width", `${progress}%`);
+            progressBar.style("width", `${progress}%`)
+                .style("box-shadow", `0 0 ${5 + progress / 20}px #4A90E2`);
             if (progress < 100 && totalDuration) requestAnimationFrame(updateProgress);
         };
         if (totalDuration) requestAnimationFrame(updateProgress);
@@ -382,7 +463,14 @@ async function renderFlows(flowId, conditionId = "default") {
             .attr("stroke-width", 2)
             .attr("marker-end", `url(#arrow-${color.replace("#", "")})`)
             .attr("class", "flowing-line")
-            .style("opacity", 0);
+            .style("stroke-dasharray", function() {
+                const length = this.getTotalLength();
+                return `${length} ${length}`;
+            })
+            .style("stroke-dashoffset", function() {
+                return this.getTotalLength();
+            })
+            .style("opacity", 1);
 
         line.each(function(d, i) {
             const linkGroup = d3.select(this);
@@ -396,23 +484,36 @@ async function renderFlows(flowId, conditionId = "default") {
                 .transition()
                 .delay(delay)
                 .duration(500)
-                .style("fill", "#90EE90")
-                .transition()
-                .duration(1000)
-                .style("fill", "#90EE90")
+                .ease(d3.easeCubicInOut)
+                .style("fill", "#66BB6A")
+                .style("filter", "drop-shadow(0 0 5px #66BB6A)")
                 .transition()
                 .duration(500)
-                .style("fill", "none");
+                .ease(d3.easeCubicInOut)
+                .style("fill", "#66BB6A")
+                .style("filter", "drop-shadow(0 0 10px #66BB6A)")
+                .transition()
+                .duration(500)
+                .ease(d3.easeCubicInOut)
+                .style("fill", "#66BB6A")
+                .style("filter", "drop-shadow(0 0 5px #66BB6A)")
+                .transition()
+                .duration(500)
+                .ease(d3.easeCubicInOut)
+                .style("fill", "none")
+                .style("filter", "none");
 
             console.log(`Target node: ${d.target.name}, ID: ${d.target.id}, x: ${d.target.x}, y: ${d.target.y}, size: ${d.target.size}`);
 
             if (d.source.id !== d.target.id) {
                 linkGroup.select("line").transition()
                     .delay(delay)
-                    .duration(500)
-                    .style("opacity", 1)
-                    .transition()
                     .duration(1000)
+                    .ease(d3.easeCubicInOut)
+                    .style("stroke-dashoffset", 0)
+                    .transition()
+                    .duration(500)
+                    .ease(d3.easeCubicInOut)
                     .style("opacity", 1);
             }
 
@@ -431,7 +532,7 @@ async function renderFlows(flowId, conditionId = "default") {
                     .attr("y", labelY)
                     .attr("text-anchor", "middle")
                     .attr("fill", d.labelColor)
-                    .attr("font-size", isInternalDecision ? "10px" : "11px")
+                    .attr("font-size", isInternalDecision ? "11px" : "12px")
                     .attr("class", isInternalDecision ? "internal-decision" : "")
                     .text(d.fullLabel)
                     .style("opacity", 0)
@@ -452,12 +553,15 @@ async function renderFlows(flowId, conditionId = "default") {
                     .transition()
                     .delay(delay)
                     .duration(500)
+                    .ease(d3.easeCubicInOut)
                     .style("opacity", 1)
                     .transition()
                     .duration(1000)
+                    .ease(d3.easeCubicInOut)
                     .style("opacity", 1)
                     .transition()
                     .duration(500)
+                    .ease(d3.easeCubicInOut)
                     .style("opacity", 0);
             }
 
@@ -475,6 +579,7 @@ async function renderFlows(flowId, conditionId = "default") {
                     .transition()
                     .delay(delay + 500)
                     .duration(500)
+                    .ease(d3.easeCubicInOut)
                     .style("opacity", 1);
             }
 
@@ -486,7 +591,7 @@ async function renderFlows(flowId, conditionId = "default") {
                 linkGroup.append("path")
                     .attr("class", "decision-check")
                     .attr("d", "M -5,-5 L 0,5 L 10,-10")
-                    .attr("stroke", "#00FF00")
+                    .attr("stroke", "#66BB6A")
                     .attr("stroke-width", 2)
                     .attr("fill", "none")
                     .attr("transform", `translate(${isInternalDecision ? d.target.x : (d.source.x + d.target.x) / 2}, ${checkY})`)
@@ -494,12 +599,15 @@ async function renderFlows(flowId, conditionId = "default") {
                     .transition()
                     .delay(delay + 500)
                     .duration(500)
+                    .ease(d3.easeCubicInOut)
                     .style("opacity", 1)
                     .transition()
                     .duration(1000)
+                    .ease(d3.easeCubicInOut)
                     .style("opacity", 1)
                     .transition()
                     .duration(500)
+                    .ease(d3.easeCubicInOut)
                     .style("opacity", 0);
             }
         });
@@ -520,7 +628,7 @@ function renderFlowLegend() {
     console.log("Rendering flow legend");
     try {
         svg.selectAll(".flow-legend").remove();
-        const staticInfoHeight = staticInfo.length * 20 + 10;
+        const staticInfoHeight = staticInfo.length * 25 + 20;
         const legendX = 970;
         const legendY = 20 + staticInfoHeight + 10;
 
@@ -545,20 +653,21 @@ function renderFlowLegend() {
             }
         });
 
-        const legendBoxHeight = legendEntries.length * 20 + 10;
+        const legendBoxHeight = legendEntries.length * 25 + 20;
         legendGroup.append("rect")
-            .attr("x", -5)
-            .attr("y", -5)
-            .attr("width", 400)
+            .attr("x", -10)
+            .attr("y", -10)
+            .attr("width", 410)
             .attr("height", legendBoxHeight)
-            .attr("fill", "#2E3B3E")
+            .attr("fill", "url(#info-gradient)")
             .attr("stroke", "#4A5A5D")
             .attr("stroke-width", 1)
-            .attr("rx", 5);
+            .attr("rx", 5)
+            .style("filter", "url(#drop-shadow)");
 
         legendEntries.forEach((entry, i) => {
             const entryGroup = legendGroup.append("g")
-                .attr("transform", `translate(5, ${i * 20 + 10})`);
+                .attr("transform", `translate(5, ${i * 25 + 15})`);
 
             entryGroup.append("rect")
                 .attr("x", 0)
@@ -570,8 +679,8 @@ function renderFlowLegend() {
             entryGroup.append("text")
                 .attr("x", 15)
                 .attr("y", 0)
-                .attr("font-size", "12px")
-                .attr("fill", "#E0E0E0")
+                .attr("font-size", "13px")
+                .attr("fill", "#E8ECEF")
                 .text(entry.name);
         });
 
@@ -633,6 +742,20 @@ async function renderConnections() {
         }
         console.log(`Rendering ${linesToRender.length} connection lines`);
 
+        svg.append("defs").selectAll("marker")
+            .data([...new Set(linesToRender.map(d => d.color))])
+            .enter().append("marker")
+            .attr("id", d => `arrow-${d.replace("#", "")}`)
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 10)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", d => d);
+
         const link = overlay.selectAll(".link")
             .data(linesToRender)
             .enter().append("g")
@@ -658,18 +781,8 @@ async function renderConnections() {
                 .attr("stroke", d.color)
                 .attr("stroke-width", 2)
                 .attr("stroke-dasharray", "5,5")
-                .attr("class", "flowing-line")
-                .style("cursor", "pointer")
-                .on("mouseover", function(event, d) {
-                    console.log(`Hover over connection: ${d.source.name} → ${d.target.name}, flow: ${d.flowName}`);
-                    tooltip.transition().duration(200).style("opacity", 0.9);
-                    tooltip.html(`<strong>Flow:</strong> ${d.flowName}<br><strong>From:</strong> ${d.source.name}<br><strong>To:</strong> ${d.target.name}`)
-                        .style("left", (event.pageX + 10) + "px")
-                        .style("top", (event.pageY - 28) + "px");
-                })
-                .on("mouseout", function() {
-                    tooltip.transition().duration(500).style("opacity", 0);
-                });
+                .attr("marker-end", `url(#arrow-${d.color.replace("#", "")})`)
+                .attr("class", "flowing-line");
         });
 
         renderFlowLegend();
@@ -710,7 +823,7 @@ async function renderWatchpoints() {
         certGroup.append("text")
             .attr("class", "cert-text")
             .attr("y", 0)
-            .attr("fill", "#FFFFFF")
+            .attr("fill", "#E8ECEF")
             .attr("font-size", "11px")
             .text(d => d.certificates.keystore.split('_').pop())
             .style("cursor", "pointer")
@@ -719,7 +832,7 @@ async function renderWatchpoints() {
                 svg.selectAll(".node")
                     .filter(n => n.id === d.id)
                     .select("rect, path")
-                    .style("filter", "drop-shadow(0 0 5px #00A1D6)");
+                    .style("filter", "drop-shadow(0 0 5px #4A90E2)");
             })
             .on("mouseout", function(event, d) {
                 svg.selectAll(".node")
@@ -731,7 +844,7 @@ async function renderWatchpoints() {
         certGroup.append("text")
             .attr("class", "cert-text")
             .attr("y", 15)
-            .attr("fill", "#FFFFFF")
+            .attr("fill", "#E8ECEF")
             .attr("font-size", "11px")
             .text(d => d.certificates.truststore.split('_').pop())
             .style("cursor", "pointer")
@@ -739,7 +852,7 @@ async function renderWatchpoints() {
                 svg.selectAll(".node")
                     .filter(n => n.id === d.id)
                     .select("rect, path")
-                    .style("filter", "drop-shadow(0 0 5px #00A1D6)");
+                    .style("filter", "drop-shadow(0 0 5px #4A90E2)");
             })
             .on("mouseout", function(event, d) {
                 svg.selectAll(".node")
@@ -752,7 +865,7 @@ async function renderWatchpoints() {
             .append("text")
             .attr("class", "cert-text")
             .attr("y", 30)
-            .attr("fill", "#FFFFFF")
+            .attr("fill", "#E8ECEF")
             .attr("font-size", "11px")
             .text(d => d.certificates.signing_cert)
             .style("cursor", "pointer")
@@ -760,7 +873,7 @@ async function renderWatchpoints() {
                 svg.selectAll(".node")
                     .filter(n => n.id === d.id)
                     .select("rect, path")
-                    .style("filter", "drop-shadow(0 0 5px #00A1D6)");
+                    .style("filter", "drop-shadow(0 0 5px #4A90E2)");
             })
             .on("mouseout", function(event, d) {
                 svg.selectAll(".node")
@@ -773,7 +886,7 @@ async function renderWatchpoints() {
             .append("text")
             .attr("class", "cert-text")
             .attr("y", 30)
-            .attr("fill", "#FFFFFF")
+            .attr("fill", "#E8ECEF")
             .attr("font-size", "11px")
             .text(d => d.certificates.signing_key)
             .style("cursor", "pointer")
@@ -781,7 +894,7 @@ async function renderWatchpoints() {
                 svg.selectAll(".node")
                     .filter(n => n.id === d.id)
                     .select("rect, path")
-                    .style("filter", "drop-shadow(0 0 5px #00A1D6)");
+                    .style("filter", "drop-shadow(0 0 5px #4A90E2)");
             })
             .on("mouseout", function(event, d) {
                 svg.selectAll(".node")
@@ -794,7 +907,7 @@ async function renderWatchpoints() {
             .append("text")
             .attr("class", "cert-text")
             .attr("y", 30)
-            .attr("fill", "#FFFFFF")
+            .attr("fill", "#E8ECEF")
             .attr("font-size", "11px")
             .text(d => d.certificates.signing_hsm)
             .style("cursor", "pointer")
@@ -802,7 +915,7 @@ async function renderWatchpoints() {
                 svg.selectAll(".node")
                     .filter(n => n.id === d.id)
                     .select("rect, path")
-                    .style("filter", "drop-shadow(0 0 5px #00A1D6)");
+                    .style("filter", "drop-shadow(0 0 5px #4A90E2)");
             })
             .on("mouseout", function(event, d) {
                 svg.selectAll(".node")
@@ -821,7 +934,7 @@ async function renderWatchpoints() {
             .attr("x", width / 2)
             .attr("y", height / 2)
             .attr("text-anchor", "middle")
-            .attr("fill", "#FF0000")
+            .attr("fill", "#EF5350")
             .attr("font-size", "16px")
             .text("Error rendering Watchpoints tab. Check console.");
     }
@@ -892,8 +1005,8 @@ async function renderImpactAnalysis() {
             .style("position", "absolute")
             .style("top", "10px")
             .style("right", "10px")
-            .style("background-color", "#00A1D6")
-            .style("color", "#FFFFFF")
+            .style("background-color", "#4A90E2")
+            .style("color", "#E8ECEF")
             .style("border", "none")
             .style("padding", "8px 16px")
             .style("border-radius", "4px")
@@ -901,10 +1014,10 @@ async function renderImpactAnalysis() {
             .style("font-size", "14px")
             .text("Reset Simulation")
             .on("mouseover", function() {
-                d3.select(this).style("background-color", "#008BB5");
+                d3.select(this).style("background-color", "#3A78C2");
             })
             .on("mouseout", function() {
-                d3.select(this).style("background-color", "#00A1D6");
+                d3.select(this).style("background-color", "#4A90E2");
             })
             .on("click", () => {
                 nodes.forEach(node => {
@@ -970,7 +1083,6 @@ async function renderImpactAnalysis() {
             );
             const intactFlows = flows.filter(flow => !impactedFlows.includes(flow));
 
-            // Update crash indicators and node colors
             svg.selectAll(".node").each(function(d) {
                 const g = d3.select(this);
                 if (d.shape === "square") {
@@ -986,7 +1098,6 @@ async function renderImpactAnalysis() {
                     .style("opacity", (d.crashed || d.hovered) ? 1 : 0);
             });
 
-            // Draw impacted flows (red dashed lines)
             const impactedLines = [];
             impactedFlows.forEach((flow, flowIndex) => {
                 const offset = flowIndex * 5;
@@ -1009,7 +1120,6 @@ async function renderImpactAnalysis() {
                 });
             });
 
-            // Draw intact flows (green dashed lines)
             const intactLines = [];
             intactFlows.forEach((flow, flowIndex) => {
                 const offset = (flowIndex + impactedFlows.length) * 5;
@@ -1032,10 +1142,8 @@ async function renderImpactAnalysis() {
                 });
             });
 
-            // Remove existing flow lines
             overlay.selectAll(".flow-line").remove();
 
-            // Draw impacted flow lines (red)
             const impactedLink = overlay.selectAll(".impacted-flow-line")
                 .data(impactedLines)
                 .enter().append("g")
@@ -1058,7 +1166,7 @@ async function renderImpactAnalysis() {
                     .attr("y1", d.source.y + offsetY)
                     .attr("x2", d.target.x + offsetX)
                     .attr("y2", d.target.y + offsetY)
-                    .attr("stroke", "#FF0000")
+                    .attr("stroke", "#EF5350")
                     .attr("stroke-width", 2)
                     .attr("stroke-dasharray", "5,5")
                     .style("cursor", "pointer")
@@ -1073,7 +1181,6 @@ async function renderImpactAnalysis() {
                     });
             });
 
-            // Draw intact flow lines (green)
             const intactLink = overlay.selectAll(".intact-flow-line")
                 .data(intactLines)
                 .enter().append("g")
@@ -1096,7 +1203,7 @@ async function renderImpactAnalysis() {
                     .attr("y1", d.source.y + offsetY)
                     .attr("x2", d.target.x + offsetX)
                     .attr("y2", d.target.y + offsetY)
-                    .attr("stroke", "#00FF00")
+                    .attr("stroke", "#66BB6A")
                     .attr("stroke-width", 2)
                     .attr("stroke-dasharray", "5,5")
                     .style("cursor", "pointer")
@@ -1111,7 +1218,6 @@ async function renderImpactAnalysis() {
                     });
             });
 
-            // Highlight nodes in impacted flows (red glow)
             const impactedNodes = new Set();
             impactedFlows.forEach(flow => {
                 flow.conditions.forEach(condition => {
@@ -1134,17 +1240,16 @@ async function renderImpactAnalysis() {
                 const g = d3.select(this);
                 if (impactedNodes.has(d.id)) {
                     g.select("rect, path")
-                        .style("filter", "drop-shadow(0 0 5px #FF0000)");
+                        .style("filter", "drop-shadow(0 0 5px #EF5350)");
                 } else if (intactNodes.has(d.id)) {
                     g.select("rect, path")
-                        .style("filter", "drop-shadow(0 0 5px #00FF00)");
+                        .style("filter", "drop-shadow(0 0 5px #66BB6A)");
                 } else {
                     g.select("rect, path")
                         .style("filter", "none");
                 }
             });
 
-            // Update flow legend
             renderFlowLegendImpact(impactedFlows, intactFlows);
         }
 
@@ -1178,7 +1283,7 @@ function renderFlowLegendImpact(impactedFlows = [], intactFlows = [], isPreview 
     console.log("Rendering flow legend for Impact Analysis", { impactedFlows, intactFlows, isPreview });
     try {
         svg.selectAll(".flow-legend").remove();
-        const staticInfoHeight = staticInfo.length * 20 + 10;
+        const staticInfoHeight = staticInfo.length * 25 + 20;
         const legendX = 970;
         const legendY = 20 + staticInfoHeight + 10;
 
@@ -1224,81 +1329,80 @@ function renderFlowLegendImpact(impactedFlows = [], intactFlows = [], isPreview 
             }
         });
 
-        // Legend for Impacted Flows
         let yOffset = 0;
         if (impactedEntries.length > 0) {
             legendGroup.append("text")
                 .attr("x", 5)
-                .attr("y", yOffset + 10)
+                .attr("y", yOffset + 15)
                 .attr("font-size", "14px")
                 .attr("font-weight", "bold")
-                .attr("fill", "#FF0000")
+                .attr("fill", "#EF5350")
                 .text("Impacted Flows");
-            yOffset += 20;
+            yOffset += 25;
 
             impactedEntries.forEach((entry, i) => {
                 const entryGroup = legendGroup.append("g")
-                    .attr("transform", `translate(5, ${yOffset + i * 20 + 10})`);
+                    .attr("transform", `translate(5, ${yOffset + i * 25 + 15})`);
 
                 entryGroup.append("rect")
                     .attr("x", 0)
                     .attr("y", -8)
                     .attr("width", 10)
                     .attr("height", 10)
-                    .attr("fill", isPreview ? "#FFA500" : "#FF0000");
+                    .attr("fill", isPreview ? "#FFA500" : "#EF5350");
 
                 entryGroup.append("text")
                     .attr("x", 15)
                     .attr("y", 0)
-                    .attr("font-size", "12px")
-                    .attr("fill", "#E0E0E0")
+                    .attr("font-size", "13px")
+                    .attr("fill", "#E8ECEF")
                     .text(entry.name);
             });
-            yOffset += impactedEntries.length * 20 + 10;
+            yOffset += impactedEntries.length * 25 + 10;
         }
 
-        // Legend for Intact Flows
         if (intactEntries.length > 0) {
             legendGroup.append("text")
                 .attr("x", 5)
-                .attr("y", yOffset + 10)
+                .attr("y", yOffset + 15)
                 .attr("font-size", "14px")
                 .attr("font-weight", "bold")
-                .attr("fill", "#00FF00")
+                .attr("fill", "#66BB6A")
                 .text("Intact Flows");
-            yOffset += 20;
+            yOffset += 25;
 
             intactEntries.forEach((entry, i) => {
                 const entryGroup = legendGroup.append("g")
-                    .attr("transform", `translate(5, ${yOffset + i * 20 + 10})`);
+                    .attr("transform", `translate(5, ${yOffset + i * 25 + 15})`);
 
                 entryGroup.append("rect")
                     .attr("x", 0)
                     .attr("y", -8)
                     .attr("width", 10)
                     .attr("height", 10)
-                    .attr("fill", "#00FF00");
+                    .attr("fill", "#66BB6A");
 
                 entryGroup.append("text")
                     .attr("x", 15)
                     .attr("y", 0)
-                    .attr("font-size", "12px")
-                    .attr("fill", "#E0E0E0")
+                    .attr("font-size", "13px")
+                    .attr("fill", "#E8ECEF")
                     .text(entry.name);
             });
-            yOffset += intactEntries.length * 20;
+            yOffset += intactEntries.length * 25;
         }
 
-        const legendBoxHeight = yOffset + 10;
+        const legendBoxHeight = yOffset + 20;
         legendGroup.insert("rect", ":first-child")
-            .attr("x", -5)
-            .attr("y", -5)
-            .attr("width", 400)
+            .attr("x", -10)
+            .attr("y", -10)
+            .attr("width", 410)
             .attr("height", legendBoxHeight)
-            .attr("fill", "#2E3B3E")
+            .attr("fill", "url(#info-gradient)")
             .attr("stroke", "#4A5A5D")
             .attr("stroke-width", 1)
-            .attr("rx", 5);
+            .attr("rx", 5)
+            .style("filter", "url(#drop-shadow)");
 
         console.log("Flow legend for Impact Analysis rendered with", impactedEntries.length + intactEntries.length, "entries");
     } catch (error) {
@@ -1310,16 +1414,21 @@ function renderFlowLegendImpact(impactedFlows = [], intactFlows = [], isPreview 
 console.log("Starting initialization");
 (async () => {
     console.log("Executing initialization block");
-    await loadData();
-    console.log("Data loaded, initializing blueprint");
-    initBlueprint();
-    console.log("Blueprint initialized, rendering static info");
-    renderStaticInfo();
-    console.log("Static info rendered, rendering blueprint");
-    renderBlueprint();
-    console.log("Blueprint rendered, updating flow options");
-    await updateFlowOptions();
-    console.log("Initialization completed");
+    try {
+        await loadData();
+        console.log("Data loaded, initializing blueprint");
+        initBlueprint();
+        console.log("Blueprint initialized, rendering static info");
+        renderStaticInfo();
+        console.log("Static info rendered, rendering blueprint");
+        renderBlueprint();
+        console.log("Blueprint rendered, updating flow options");
+        await updateFlowOptions();
+        console.log("Initialization completed successfully");
+    } catch (error) {
+        console.error("Initialization failed:", error);
+        alert("Initialization failed: " + error.message + ". Check console for details.");
+    }
 })();
 
 const setupEventListeners = () => {
@@ -1331,11 +1440,10 @@ const setupEventListeners = () => {
     const impactAnalysisTab = document.getElementById("layer-impact-analysis");
     const flowSelect = document.getElementById("flow-select");
     const conditionSelect = document.getElementById("condition-select");
-    const exportBtn = document.getElementById("export-btn");
 
-    if (!infrastructureTab || !flowsTab || !watchpointsTab || !connectionsTab || !impactAnalysisTab || !flowSelect || !conditionSelect || !exportBtn) {
+    if (!infrastructureTab || !flowsTab || !watchpointsTab || !connectionsTab || !impactAnalysisTab || !flowSelect || !conditionSelect) {
         console.error("One or more DOM elements not found:", {
-            infrastructureTab, flowsTab, watchpointsTab, connectionsTab, impactAnalysisTab, flowSelect, conditionSelect, exportBtn
+            infrastructureTab, flowsTab, watchpointsTab, connectionsTab, impactAnalysisTab, flowSelect, conditionSelect
         });
         alert("Error: DOM elements missing. Check index.html for correct IDs.");
         return;
@@ -1382,44 +1490,26 @@ const setupEventListeners = () => {
         renderFlows(flowId, flow.conditions[0].id);
     });
 
-    exportBtn.addEventListener("click", () => {
-        console.log("Exporting PNG");
-        try {
-            const svgElement = document.getElementById("visualization");
-            const serializer = new XMLSerializer();
-            const svgString = serializer.serializeToString(svgElement);
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            canvas.width = width;
-            canvas.height = height;
-            const img = new Image();
-            img.onload = () => {
-                ctx.drawImage(img, 0, 0);
-                const link = document.createElement("a");
-                link.download = "api-animation.png";
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-            };
-            img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgString)));
-        } catch (error) {
-            console.error("Error exporting PNG:", error);
-            alert("Error exporting PNG. Check console.");
-        }
-    });
-
     console.log("Event listeners setup completed");
 };
 
 setupEventListeners();
 
 const zoom = d3.zoom()
-    .scaleExtent([0.5, 2])
+    .scaleExtent([0.5, 3])
     .filter(event => event.type === "wheel" || event.touches)
     .on("zoom", (event) => {
-        svg.selectAll("g").attr("transform", event.transform);
+        svg.selectAll("g")
+            .transition()
+            .duration(200)
+            .ease(d3.easeCubicInOut)
+            .attr("transform", event.transform);
     });
 svg.call(zoom);
 
 svg.on("dblclick.zoom", () => {
-    svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+    svg.transition()
+        .duration(750)
+        .ease(d3.easeCubicInOut)
+        .call(zoom.transform, d3.zoomIdentity);
 });
